@@ -26,8 +26,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    await mongoose.disconnect().catch(() => {});
+    if (mongoServer) {
+        try {
+            await mongoServer.stop();
+        } catch {
+            // Évite d'échouer le run si l'arrêt du binaire mongod est restreint (sandbox, permissions)
+        }
+    }
 });
 
 describe('Auth Service - Traefik & Provisioning Tests', () => {

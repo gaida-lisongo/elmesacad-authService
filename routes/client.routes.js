@@ -50,22 +50,23 @@ router.get('/validate', async (req, res) => {
 // --- 1. POST : APPROVISIONNEMENT ---
 router.post('/provision', checkSignature, async (req, res) => {
     const { apiKey, apiSecret, designation, duration } = req.body;
-    // ... reste du code identique ...
     try {
         // On vérifie si le client existe déjà
         let client = await Client.findOne({ apiKey });
         if (client) return res.status(400).json({ error: "Client déjà enregistré" });
 
-        // Création du client avec apiSecret (sera haché par le schéma)
+        // Création du client
         client = new Client({ apiKey, apiSecret, designation, duration });
         
-        const token = jwt.sign({ id: client._id }, process.env.JWT_SECRET, { expiresIn: duration });
+        // Génération du token
+        const token = jwt.sign({ id: client._id }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: parseInt(duration) || 3600 });
         client.token = token;
-        client.expiresAt = new Date(Date.now() + duration * 1000);
+        client.expiresAt = new Date(Date.now() + (parseInt(duration) || 3600) * 1000);
         
         await client.save();
         res.status(201).json({ message: "Client approvisionné", token });
     } catch (err) {
+        console.error("Erreur Provisioning:", err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -111,6 +112,8 @@ router.delete('/revoke', checkSignature, async (req, res) => {
     const { apiKey, apiSecret } = req.body;
     try {
         const client = await Client.findOne({ apiKey });
+        if (!client) return res.status(404).json({ error: "Client inconnu" });
+
         const isMatch = await bcrypt.compare(apiSecret, client.apiSecret);
         
         if (isMatch) {

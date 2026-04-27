@@ -10,11 +10,10 @@ const ClientSchema = new mongoose.Schema({
     expiresAt: { type: Date } // Timestamp d'expiration
 });
 
-// Avant de sauvegarder, on hache l'apiSecret
-ClientSchema.pre('save', async function(next) {
-    if (!this.isModified('apiSecret')) return next();
+// Avant de sauvegarder, on hache l'apiSecret (async sans `next` — compatible Mongoose 6+)
+ClientSchema.pre('save', async function () {
+    if (!this.isModified('apiSecret')) return;
     this.apiSecret = await bcrypt.hash(this.apiSecret, 10);
-    next();
 });
 
 module.exports = mongoose.model('Client', ClientSchema);
